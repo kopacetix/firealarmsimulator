@@ -597,6 +597,33 @@ const CSS = `
 .teach{background:var(--steel-lt); border-left:4px solid var(--steel); border-radius:2px; padding:10px 13px; font-size:13.5px; color:#25404f; margin-top:12px;}
 .teach b{text-transform:uppercase; letter-spacing:.06em; font-size:12px;}
 
+/* field device wall */
+.dev-wall{margin-top:16px; background:var(--card); border:1px solid var(--line); border-radius:4px; padding:14px 16px;}
+.dev-wall h3{font-size:18px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; font-family:'Barlow Condensed',sans-serif;}
+.dw-hint{font-size:12.5px; color:var(--ink2); margin-bottom:12px;}
+.dw-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(102px,1fr)); gap:10px;}
+.dev-tile{appearance:none; font:inherit; background:#faf9f5; border:1px solid var(--line); border-radius:6px;
+  padding:10px 4px 8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px;
+  transition:border-color .12s, box-shadow .12s, background .12s;}
+.dev-tile:hover{border-color:var(--ink); background:#fff;}
+.dev-tile:focus-visible{outline:2px solid var(--steel); outline-offset:2px;}
+.dev-tile.active{border-color:var(--red); background:#fdf1f3; box-shadow:0 0 0 1px var(--red);}
+.dev-tile.supv.active{border-color:var(--amber); background:var(--amber-bg); box-shadow:0 0 0 1px var(--amber);}
+.dev-tile.latched{border-color:#d9ab10; background:#fdf8e3;}
+.dev-tile.ping{border-color:var(--green); box-shadow:0 0 0 2px rgba(30,122,60,.45); background:#f2f7f1;}
+.dev-tile.output{cursor:default;}
+.dev-tile.output:hover{border-color:var(--line); background:#faf9f5;}
+.dev-tile.output.active:hover{border-color:var(--red); background:#fdf1f3;}
+.dev-tile .nm{font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:12px; text-transform:uppercase;
+  letter-spacing:.04em; text-align:center; line-height:1.15; color:var(--ink);}
+.dev-tile .stt{font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:.02em; color:#9aa0a9; text-align:center;}
+.stt.red{color:var(--red); font-weight:600;} .stt.amb{color:var(--amber); font-weight:600;} .stt.grn{color:var(--green); font-weight:600;}
+@keyframes strobeflash{0%,82%{opacity:.18;} 84%,100%{opacity:1;}}
+.strobe-on{animation:strobeflash .75s linear infinite;}
+@keyframes hornwave{0%{opacity:0;} 30%{opacity:1;} 100%{opacity:0;}}
+.horn-wave{animation:hornwave .75s linear infinite;}
+@media (prefers-reduced-motion: reduce){.strobe-on,.horn-wave{animation:none; opacity:1;}}
+
 /* diagram */
 .dia-tools{display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; margin-bottom:14px;}
 .dia-tools .lbl{font-family:'Barlow Condensed',sans-serif; font-weight:600; text-transform:uppercase; letter-spacing:.07em; font-size:13px; color:var(--ink2);}
@@ -1015,6 +1042,143 @@ const DEV_SIGNAL = {
   beam: "ALARM", aspirating: "ALARM", duct: "SUPERVISORY", tamper: "SUPERVISORY", nac: null,
 };
 
+
+/* ---- field device icons (simple generic glyphs, stateful) ---- */
+function DevIcon({ dev, st, nacOn }) {
+  const on = st === "active";
+  const latched = st === "latched";
+  const sup = dev === "tamper" || dev === "duct";
+  const led = on ? (sup ? "#ffb020" : "#ff2020") : latched ? "#ffb020" : "#b7b2a4";
+  const glow = on ? { filter: "drop-shadow(0 0 3px " + (sup ? "rgba(255,176,32,.9)" : "rgba(255,40,40,.9)") + ")" } : {};
+  const P = { width: 62, height: 62, viewBox: "0 0 72 72", "aria-hidden": true };
+  switch (dev) {
+    case "photoSmoke":
+      return (<svg {...P}>
+        <circle cx="36" cy="33" r="25" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <circle cx="36" cy="33" r="16" fill="none" stroke="#c9c4b6" strokeWidth="3" strokeDasharray="5 4" />
+        <circle cx="36" cy="33" r="7" fill="#ece8db" stroke="#b7b2a4" />
+        <circle cx="50" cy="48" r="4" fill={led} style={glow} />
+      </svg>);
+    case "heat":
+      return (<svg {...P}>
+        <circle cx="36" cy="34" r="24" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <rect x="33" y="19" width="6" height="21" rx="3" fill="#c8102e" opacity={on ? 1 : 0.45} />
+        <circle cx="36" cy="45" r="6" fill="#c8102e" opacity={on ? 1 : 0.45} />
+        <circle cx="53" cy="50" r="4" fill={led} style={glow} />
+      </svg>);
+    case "pull":
+      return (<svg {...P}>
+        <rect x="18" y="7" width="36" height="56" rx="4" fill="#c8102e" stroke="#7a1420" strokeWidth="2" />
+        <text x="36" y="20" textAnchor="middle" fontSize="9.5" fill="#fff" fontWeight="bold" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1.5">FIRE</text>
+        <rect x="24" y={on || latched ? 45 : 27} width="24" height="10" rx="2" fill="#fff" stroke="#7a1420" />
+        {!(on || latched) && <text x="36" y="52" textAnchor="middle" fontSize="7.5" fill="#ffd9de" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1">PULL</text>}
+      </svg>);
+    case "duct":
+      return (<svg {...P}>
+        <rect x="4" y="36" width="64" height="20" fill="#e3e6ea" stroke="#9aa0a9" />
+        <rect x="22" y="12" width="28" height="21" rx="2" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <line x1="30" y1="33" x2="30" y2="53" stroke="#8f8669" strokeWidth="3" />
+        <line x1="42" y1="33" x2="42" y2="47" stroke="#8f8669" strokeWidth="3" />
+        <circle cx="44" cy="20" r="3.5" fill={led} style={glow} />
+      </svg>);
+    case "waterflow":
+      return (<svg {...P}>
+        <rect x="4" y="43" width="64" height="13" rx="2" fill="#cdd4da" stroke="#9aa0a9" />
+        <rect x="32" y="36" width="8" height="8" fill="#9aa0a9" />
+        <rect x="24" y="13" width="24" height="24" rx="3" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <rect x="34" y="45" width="4" height="9" fill="#8f8669" />
+        <circle cx="42" cy="20" r="3.5" fill={led} style={glow} />
+      </svg>);
+    case "tamper":
+      return (<svg {...P}>
+        <rect x="29" y="42" width="14" height="20" fill="#cdd4da" stroke="#9aa0a9" />
+        <line x1="36" y1="42" x2="36" y2="28" stroke="#8f8669" strokeWidth="4" />
+        <g transform={on ? "rotate(28 36 21)" : ""}>
+          <circle cx="36" cy="21" r="13" fill="none" stroke={on ? "#b97e0a" : "#8f8669"} strokeWidth="3" />
+          <line x1="36" y1="9" x2="36" y2="33" stroke={on ? "#b97e0a" : "#8f8669"} strokeWidth="2.5" />
+          <line x1="24" y1="21" x2="48" y2="21" stroke={on ? "#b97e0a" : "#8f8669"} strokeWidth="2.5" />
+        </g>
+        <circle cx="56" cy="54" r="4" fill={led} style={glow} />
+      </svg>);
+    case "beam":
+      return (<svg {...P}>
+        <rect x="4" y="26" width="14" height="20" rx="2" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <rect x="54" y="26" width="14" height="20" rx="2" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <line x1="18" y1="36" x2="54" y2="36" stroke={on ? "#c8102e" : "#8fb2c9"} strokeWidth="2.5" strokeDasharray="6 4" />
+        <circle cx="11" cy="52" r="4" fill={led} style={glow} />
+      </svg>);
+    case "aspirating":
+      return (<svg {...P}>
+        <rect x="18" y="9" width="36" height="29" rx="3" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <circle cx="36" cy="23" r="8" fill="none" stroke="#9aa0a9" strokeWidth="2" />
+        <line x1="30" y1="17" x2="42" y2="29" stroke="#9aa0a9" strokeWidth="2" />
+        <line x1="42" y1="17" x2="30" y2="29" stroke="#9aa0a9" strokeWidth="2" />
+        <line x1="36" y1="38" x2="36" y2="52" stroke="#9aa0a9" strokeWidth="4" />
+        <line x1="8" y1="52" x2="64" y2="52" stroke="#9aa0a9" strokeWidth="4" />
+        {[14, 24, 48, 58].map(x => <circle key={x} cx={x} cy="52" r="1.8" fill="#5b6570" />)}
+        <circle cx="48" cy="16" r="3.5" fill={led} style={glow} />
+      </svg>);
+    case "nac":
+      return (<svg {...P}>
+        <rect x="20" y="6" width="32" height="60" rx="3" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" />
+        <rect x="15" y="16" width="42" height="15" rx="4" fill={nacOn ? "#fffdf2" : "#e8e4d6"} stroke="#9aa0a9" className={nacOn ? "strobe-on" : ""} style={nacOn ? { filter: "drop-shadow(0 0 6px rgba(255,255,240,.95))" } : {}} />
+        <text x="36" y="43" textAnchor="middle" fontSize="8.5" fill="#c8102e" fontWeight="bold" fontFamily="Barlow Condensed, sans-serif" letterSpacing="2">FIRE</text>
+        {[48, 53, 58].map(y => <line key={y} x1="27" y1={y} x2="45" y2={y} stroke="#9aa0a9" strokeWidth="2.5" />)}
+        {nacOn && <g className="horn-wave" stroke="#c8102e" strokeWidth="2" fill="none">
+          <path d="M 56 44 q 6 9 0 18" /><path d="M 61 40 q 9 13 0 26" />
+          <path d="M 16 44 q -6 9 0 18" /><path d="M 11 40 q -9 13 0 26" />
+        </g>}
+      </svg>);
+    default:
+      return (<svg {...P}><circle cx="36" cy="36" r="22" fill="#fdfcf8" stroke="#8f8669" strokeWidth="2" /><circle cx="36" cy="36" r="4" fill={led} /></svg>);
+  }
+}
+
+function FieldDeviceWall({ cfg, conds, nacOn, silenced, hasAlarm, walk, walkPing, onTap }) {
+  const devs = cfg.devices.length ? cfg.devices : DEFAULT_CONFIG.devices;
+  return (
+    <div className="dev-wall">
+      <h3>Field devices — tap to operate</h3>
+      <p className="dw-hint">
+        {walk
+          ? "Walk test is ON: tapping a device logs a test pass and auto-restores — no full alarm."
+          : "Tap an initiating device to send its signal to the panel; tap it again to restore it. The horn/strobe is an OUTPUT — it follows the panel, you don't tap it."}
+      </p>
+      <div className="dw-grid">
+        {devs.map(dev => {
+          if (dev === "nac") {
+            const stt = nacOn ? "SOUNDING" : silenced && hasAlarm ? "SILENCED" : "STANDBY";
+            return (
+              <div key={dev} className={"dev-tile output" + (nacOn ? " active" : "")}
+                role="img" aria-label={"Horn strobe output: " + stt}>
+                <DevIcon dev="nac" nacOn={nacOn} />
+                <span className="nm">Horn / strobe</span>
+                <span className={"stt" + (nacOn ? " red" : "")}>{stt} · OUTPUT</span>
+              </div>
+            );
+          }
+          const active = conds.find(c => c.dev === dev && c.deviceActive);
+          const latched = !active && conds.some(c => c.dev === dev && c.cat === "ALARM" && !c.deviceActive);
+          const supv = DEV_SIGNAL[dev] === "SUPERVISORY";
+          const ping = walkPing === dev;
+          const st = active ? "active" : latched ? "latched" : "normal";
+          const stt = ping ? "TEST OK ✓" : active ? (supv ? "OFF-NORMAL" : "IN ALARM") : latched ? "AWAITING RESET" : "NORMAL";
+          return (
+            <button key={dev}
+              className={"dev-tile" + (supv ? " supv" : "") + (active ? " active" : "") + (latched ? " latched" : "") + (ping ? " ping" : "")}
+              onClick={() => onTap(dev, active)} aria-pressed={!!active}
+              aria-label={(DEVICES[dev] ? DEVICES[dev].name : dev) + ": " + stt + (active ? ". Tap to restore." : ". Tap to activate.")}>
+              <DevIcon dev={dev} st={st} />
+              <span className="nm">{(DEVICES[dev] ? DEVICES[dev].name : dev).split(" (")[0]}</span>
+              <span className={"stt" + (ping ? " grn" : active ? (supv ? " amb" : " red") : latched ? " amb" : "")}>{stt}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Simulator({ cfg }) {
   const [conds, setConds] = useState([]);      // {id, cat, label, deviceActive, acked, isDevice}
   const [log, setLog] = useState([]);          // {id, ts, cat, text} newest first
@@ -1024,6 +1188,7 @@ function Simulator({ cfg }) {
   const [lamp, setLamp] = useState(false);
   const [teach, setTeach] = useState(null);
   const [lcdFlash, setLcdFlash] = useState(null); // transient walk-test line
+  const [walkPing, setWalkPing] = useState(null);   // device tile flash during walk test
   const nRef = useRef(0);
 
   const now = () => new Date().toLocaleTimeString([], { hour12: false });
@@ -1045,7 +1210,9 @@ function Simulator({ cfg }) {
     if (walk && sig === "ALARM") {
       addLog("W", "WALK TEST PASS  " + label);
       setLcdFlash("TEST OK  " + label);
+      setWalkPing(devId);
       setTimeout(() => setLcdFlash(null), 2200);
+      setTimeout(() => setWalkPing(null), 1800);
       setTeach({ t: "Walk test", m: "The device operated, gave a brief local indication, auto-restored, and was written to the log — no full alarm, no dispatch. At the end of the walk, the log is your proof of which devices actually reported." });
       return;
     }
@@ -1150,7 +1317,6 @@ function Simulator({ cfg }) {
     line2 = top.cat.slice(0, 4) + ": " + top.label;
   }
 
-  const scenarioDevs = cfg.devices.length ? cfg.devices : DEFAULT_CONFIG.devices;
 
   return (
     <div>
@@ -1158,9 +1324,10 @@ function Simulator({ cfg }) {
       <h2 className="page-title">Virtual control panel</h2>
       <div className="sumstrip">{configSummary(cfg).map(b => <span key={b}>{b}</span>)}</div>
       <p className="page-lede">
-        A generic commercial-style {cfg.panelType} panel. Trip devices from the right, then work the
-        Acknowledge → Silence → Reset sequence on the panel. Nothing here is a real product — the
-        behavior is what matters.
+        A generic commercial-style {cfg.panelType} panel. Tap the field devices below it to put them
+        into alarm, then work the Acknowledge → Silence → Reset sequence up top. Watch the
+        horn/strobe — it's an output, driven entirely by the panel's state. Nothing here is a real
+        product; the behavior is what matters.
       </p>
 
       <div className="sim-layout">
@@ -1211,6 +1378,10 @@ function Simulator({ cfg }) {
             </div>
           </div>
 
+          <FieldDeviceWall cfg={cfg} conds={conds} nacOn={nacOn} silenced={silenced}
+            hasAlarm={alarms.length > 0} walk={walk} walkPing={walkPing}
+            onTap={(dev, active) => active ? restoreDevice(active.id) : activateDevice(dev)} />
+
           {teach && (
             <div className="teach"><b>{teach.t}:</b> {teach.m}</div>
           )}
@@ -1236,23 +1407,6 @@ function Simulator({ cfg }) {
               <button className="danger" onClick={() => { activateDevice("photoSmoke"); setTeach({ t: "Now try it", m: "A detector is in alarm and still active. Press RESET before restoring it and watch the panel refuse to stay normal — then restore the device below and reset again." }); }}>
                 Reset with device still active
               </button>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3>Your field devices</h3>
-            <p style={{ fontSize: 13, color: "var(--ink2)", marginBottom: 10 }}>
-              Activate a device to send its signal to the panel{walk ? " (walk test is ON — expect a logged pass, not an alarm)" : ""}.
-            </p>
-            <div className="dev-act">
-              {scenarioDevs.map(d => (
-                <React.Fragment key={d}>
-                  <span>{DEVICES[d] ? DEVICES[d].name : d}</span>
-                  <button className="btn ghost" style={{ padding: "5px 12px", fontSize: 13 }} onClick={() => activateDevice(d)}>
-                    Activate
-                  </button>
-                </React.Fragment>
-              ))}
             </div>
           </div>
 

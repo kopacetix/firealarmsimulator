@@ -597,6 +597,17 @@ const CSS = `
 .teach{background:var(--steel-lt); border-left:4px solid var(--steel); border-radius:2px; padding:10px 13px; font-size:13.5px; color:#25404f; margin-top:12px;}
 .teach b{text-transform:uppercase; letter-spacing:.06em; font-size:12px;}
 
+/* mini circuit fault trainer */
+.mini-dia{width:100%; height:auto; background:#faf9f5; border:1px solid var(--line); border-radius:4px;}
+.mini-note{font-size:12.5px; color:var(--ink2); margin-top:9px; line-height:1.5;}
+.mini-tip{font-size:11.5px; color:#9aa0a9; margin-top:8px; border-top:1px dashed var(--line); padding-top:8px;}
+.scn button.on-f{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+/* simulate sidebar next-steps */
+.next-steps .ns-btns{display:flex; flex-direction:column; gap:8px;}
+.next-steps .btn{width:100%; text-align:left; padding:11px 14px; border:1px solid var(--line2); background:#fff;}
+.next-steps .btn:hover{background:#faf9f5; border-color:var(--ink);}
+
 /* field device wall */
 .dev-wall{margin-top:16px; background:var(--card); border:1px solid var(--line); border-radius:4px; padding:14px 16px;}
 .dev-wall h3{font-size:18px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; font-family:'Barlow Condensed',sans-serif;}
@@ -899,7 +910,7 @@ function Configurator({ cfg, setCfg, onDone, onQuickStart }) {
           {step > 0 && <button className="btn ghost" onClick={() => setStep(step - 1)}>← Back</button>}
           <span className="spacer" />
           <button className="btn red" disabled={!canNext} onClick={next}>
-            {step === steps.length - 1 ? "Build my walkthrough →" : "Next →"}
+            {step === steps.length - 1 ? "Build my fire alarm panel →" : "Next →"}
           </button>
         </div>
       </div>
@@ -1179,7 +1190,126 @@ function FieldDeviceWall({ cfg, conds, nacOn, silenced, hasAlarm, walk, walkPing
   );
 }
 
-function Simulator({ cfg }) {
+
+/* ---- sidebar mini circuit: class-specific fault visual ---- */
+function miniFaultText(cfg, open, ground) {
+  const cls = cfg.wiringClass;
+  let t;
+  if (open) {
+    t = cls === "B"
+      ? "Class B open: supervision current through the EOL resistor stopped — TROUBLE at the panel, and every device past the break is OUT OF SERVICE until the wire is repaired."
+      : cls === "A"
+        ? "Class A open: TROUBLE at the panel, but the return path lets it feed the circuit from BOTH ends — no devices are lost through a single open."
+        : "Class X open: same as Class A — the loop is fed from both ends, zero devices lost. (The isolators earn their keep on wire-to-wire shorts, not opens.)";
+    if (ground) t += " A ground fault is also present.";
+    return t;
+  }
+  if (ground)
+    return "Ground fault: one conductor is touching ground. Devices keep working — a single ground doesn't disable the circuit — but half the supervision is defeated, so it gets found and fixed immediately.";
+  return cls === "B"
+    ? "This is your Class B circuit. The EOL resistor at the far end is what the panel watches — steady supervision current through it means the wire is intact. Break it and see."
+    : "This is your Class " + cls + " loop. No EOL resistor here — the circuit returns to the panel, which supervises it end-to-end. Break it and see what that buys you.";
+}
+
+function MiniCircuit({ cfg, open, ground }) {
+  const cls = cfg.wiringClass;
+  const isB = cls === "B";
+  const H = isB ? 150 : 200;
+  const y = 74;
+  const devX = [108, 166, 260];
+  const brk = 210;
+  const wireEnd = isB ? 300 : 344;
+  const glyphs = (cfg.devices.length ? cfg.devices : DEFAULT_CONFIG.devices).filter(d => d !== "nac").slice(0, 3);
+  while (glyphs.length < 3) glyphs.push(glyphs[0] || "photoSmoke");
+  const trouble = open || ground;
+  const deadSeg = open && isB;
+
+  return (
+    <svg className="mini-dia" viewBox={"0 0 380 " + H} role="img"
+      aria-label={"Class " + cls + " circuit" + (open ? " with an open circuit" : "") + (ground ? " with a ground fault" : "")}>
+      {/* panel */}
+      <rect x="8" y="46" width="52" height="54" rx="4" fill="#d9d2bf" stroke="#8f8669" strokeWidth="1.5" />
+      <text x="34" y="66" textAnchor="middle" fontSize="10" fontWeight="700" fontFamily="Barlow Condensed, sans-serif" fill="#4d4733">FACP</text>
+      <rect x="15" y="72" width="38" height="13" rx="2" fill="#3a3f1e" />
+      <text x="34" y="82" textAnchor="middle" fontSize="8" fontFamily="IBM Plex Mono, monospace" fill="#ffce54">{trouble ? "TRBL" : "NORM"}</text>
+
+      {/* outgoing wire */}
+      {open ? (
+        <g>
+          <line x1="60" y1={y} x2={brk - 9} y2={y} stroke="#33566b" strokeWidth="2.5" />
+          <line x1={brk + 9} y1={y} x2={wireEnd} y2={y}
+            stroke={deadSeg ? "#c8102e" : "#33566b"} strokeWidth="2.5"
+            strokeDasharray={deadSeg ? "5 5" : "none"} opacity={deadSeg ? 0.75 : 1} />
+          <text x={brk} y={y + 5} textAnchor="middle" fontSize="15" fill="#c8102e" fontWeight="bold">✂</text>
+        </g>
+      ) : (
+        <line x1="60" y1={y} x2={wireEnd} y2={y} stroke="#33566b" strokeWidth="2.5" />
+      )}
+
+      {/* ground fault */}
+      {ground && (
+        <g stroke="#c8102e" strokeWidth="2.5">
+          <line x1="137" y1={y} x2="137" y2={y + 24} />
+          <line x1="129" y1={y + 24} x2="145" y2={y + 24} />
+          <line x1="132" y1={y + 29} x2="142" y2={y + 29} />
+          <line x1="135" y1={y + 34} x2="139" y2={y + 34} />
+          <text x="150" y={y + 32} fontSize="8.5" fill="#c8102e" fontFamily="IBM Plex Mono, monospace" stroke="none">GND</text>
+        </g>
+      )}
+
+      {/* class X isolators */}
+      {cls === "X" && [137, 233].map(x => (
+        <g key={x}>
+          <rect x={x - 6} y={y - 6} width="12" height="12" transform={"rotate(45 " + x + " " + y + ")"} fill="#fff" stroke="#33566b" strokeWidth="1.5" />
+          <text x={x} y={y - 12} textAnchor="middle" fontSize="7.5" fill="#33566b" fontFamily="IBM Plex Mono, monospace">ISO</text>
+        </g>
+      ))}
+
+      {/* EOL resistor — Class B only */}
+      {isB && (
+        <g>
+          <path d={"M " + wireEnd + " " + y + " l5 -8 l7 16 l7 -16 l7 16 l7 -16 l7 16 l5 -8 h8"}
+            fill="none" stroke={open ? "#c8102e" : "#33566b"} strokeWidth="2"
+            strokeDasharray={open ? "4 4" : "none"} opacity={open ? 0.75 : 1} />
+          <text x={wireEnd + 27} y={y + 24} textAnchor="middle" fontSize="8.5" fill={open ? "#c8102e" : "#4c525b"} fontFamily="Barlow Condensed, sans-serif" letterSpacing=".5">EOL RESISTOR</text>
+          {open && <text x={wireEnd + 27} y={y - 16} textAnchor="middle" fontSize="8" fill="#c8102e" fontFamily="IBM Plex Mono, monospace">NO SUPV CURRENT</text>}
+        </g>
+      )}
+
+      {/* Class A / X return path */}
+      {!isB && (
+        <g>
+          <path d={"M 344 " + y + " L 344 " + (H - 34) + " L 30 " + (H - 34) + " L 30 100"}
+            fill="none" stroke="#33566b" strokeWidth="2.5" />
+          <text x="190" y={H - 20} textAnchor="middle" fontSize="9" fill="#6b7683" fontFamily="Barlow Condensed, sans-serif" letterSpacing="1">RETURN PATH TO PANEL — CLASS {cls}</text>
+          {open && (
+            <g>
+              <path d={"M 62 " + (y - 22) + " Q 130 " + (y - 46) + " " + (brk - 16) + " " + (y - 12)} fill="none" stroke="#1e7a3c" strokeWidth="1.8" strokeDasharray="4 3" />
+              <path d={"M 342 " + (y - 22) + " Q 280 " + (y - 46) + " " + (brk + 16) + " " + (y - 12)} fill="none" stroke="#1e7a3c" strokeWidth="1.8" strokeDasharray="4 3" />
+              <text x={brk} y={y - 48} textAnchor="middle" fontSize="9" fill="#1e7a3c" fontWeight="600" fontFamily="Barlow Condensed, sans-serif" letterSpacing=".5">FED FROM BOTH ENDS — 0 DEVICES LOST</text>
+            </g>
+          )}
+        </g>
+      )}
+
+      {/* devices */}
+      {devX.map((x, i) => {
+        const dead = deadSeg && x > brk;
+        return (
+          <g key={i}>
+            <circle cx={x} cy={y} r="14" fill={dead ? "#fdf1f3" : "#fff"}
+              stroke={dead ? "#c8102e" : "#33566b"} strokeWidth="1.8"
+              strokeDasharray={dead ? "3 3" : "none"} />
+            <text x={x} y={y + 4} textAnchor="middle" fontSize="10" fontWeight="700" fontFamily="Barlow Condensed, sans-serif" fill={dead ? "#c8102e" : "#1c1e22"}>{DEV_GLYPH[glyphs[i]] || "?"}</text>
+            {dead && <text x={x} y={y - 22} textAnchor="middle" fontSize="8" fill="#c8102e" fontFamily="IBM Plex Mono, monospace">OUT OF SVC</text>}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function Simulator({ cfg, goTo }) {
   const [conds, setConds] = useState([]);      // {id, cat, label, deviceActive, acked, isDevice}
   const [log, setLog] = useState([]);          // {id, ts, cat, text} newest first
   const [silenced, setSilenced] = useState(false);
@@ -1200,6 +1330,8 @@ function Simulator({ cfg }) {
   const supvs = conds.filter(c => c.cat === "SUPERVISORY");
   const unacked = conds.some(c => !c.acked);
   const nacOn = drill || (alarms.length > 0 && !silenced);
+  const openCond = conds.find(c => c.cat === "TROUBLE" && c.deviceActive && c.label.indexOf("OPEN") === 0);
+  const groundCond = conds.find(c => c.cat === "TROUBLE" && c.deviceActive && c.label.indexOf("GROUND") === 0);
 
   /* ---- device activation ---- */
   function activateDevice(devId) {
@@ -1396,18 +1528,33 @@ function Simulator({ cfg }) {
         </div>
 
         <div className="sim-side">
-          <div className="card">
-            <h3>Practice scenarios</h3>
-            <div className="scn">
-              <button className="danger" onClick={() => activateDevice("pull")}>Pull-station activation</button>
-              <button className="danger" onClick={() => activateDevice("photoSmoke")}>Smoke detector alarm</button>
-              <button onClick={() => injectFault("ground")}>Simulate ground fault</button>
-              <button onClick={() => injectFault("open")}>Simulate open circuit</button>
-              <button onClick={() => activateDevice("tamper")}>Valve tamper (supervisory)</button>
-              <button className="danger" onClick={() => { activateDevice("photoSmoke"); setTeach({ t: "Now try it", m: "A detector is in alarm and still active. Press RESET before restoring it and watch the panel refuse to stay normal — then restore the device below and reset again." }); }}>
-                Reset with device still active
+          <div className="card next-steps">
+            <h3>Go deeper</h3>
+            <div className="ns-btns">
+              <button className="btn ghost" onClick={() => goTo && goTo("Learn")}>
+                📖 Learn — how your system works
+              </button>
+              <button className="btn ghost" onClick={() => goTo && goTo("Test")}>
+                ☑ Test — guided checklist
               </button>
             </div>
+          </div>
+
+          <div className="card">
+            <h3>Circuit fault trainer — Class {cfg.wiringClass}</h3>
+            <MiniCircuit cfg={cfg} open={!!openCond} ground={!!groundCond} />
+            <div className="scn" style={{ marginTop: 10 }}>
+              <button className={openCond ? "on-f" : ""}
+                onClick={() => openCond ? restoreDevice(openCond.id) : injectFault("open")}>
+                {openCond ? "✕ Repair the open" : "⚡ Break the wire (open circuit)"}
+              </button>
+              <button className={groundCond ? "on-f" : ""}
+                onClick={() => groundCond ? restoreDevice(groundCond.id) : injectFault("ground")}>
+                {groundCond ? "✕ Clear the ground fault" : "⏚ Ground fault"}
+              </button>
+            </div>
+            <p className="mini-note">{miniFaultText(cfg, !!openCond, !!groundCond)}</p>
+            <p className="mini-tip">Tip: to practice a failed reset, tap a smoke detector on the device wall, then press RESET before restoring it.</p>
           </div>
 
           <div className="card">
@@ -1761,11 +1908,11 @@ export default function FireAlarmTrainer() {
           monitoring company and building occupants.
         </div>
 
-        {tab === "Configure" && <Configurator cfg={cfg} setCfg={setCfg} onDone={() => setTab("Learn")}
+        {tab === "Configure" && <Configurator cfg={cfg} setCfg={setCfg} onDone={() => setTab("Simulate")}
           onQuickStart={(dest) => { setCfg(c => ({ ...DEFAULT_CONFIG, complete: true })); setTab(dest); }} />}
         {tab === "Learn" && <LearnPage cfg={cfg} />}
         {tab === "Test" && <ChecklistPage cfg={cfg} />}
-        {tab === "Simulate" && <Simulator cfg={cfg} />}
+        {tab === "Simulate" && <Simulator cfg={cfg} goTo={setTab} />}
         {tab === "Reference" && <ReferencePage />}
       </main>
     </div>
